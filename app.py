@@ -121,7 +121,28 @@ st.markdown(
             text-transform: uppercase;
             margin-bottom: 0.55rem;
         }
-        .team-name {color: white; font-size: 0.86rem; margin: 0.25rem 0;}
+        [data-testid="stSidebar"] .team-link {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            width: fit-content;
+            color: white !important;
+            font-size: 0.84rem;
+            font-weight: 600;
+            margin: 0.42rem 0;
+            text-decoration: none;
+            opacity: 0.94;
+            transition: color 0.15s ease, opacity 0.15s ease;
+        }
+        [data-testid="stSidebar"] .team-link:hover {
+            color: var(--gold) !important;
+            opacity: 1;
+        }
+        .github-mark {
+            width: 1rem;
+            height: 1rem;
+            flex: 0 0 1rem;
+        }
 
         /* Page typography */
         .page-kicker {
@@ -317,8 +338,18 @@ st.sidebar.markdown(
     """
     <div class="team-card">
         <div class="team-label">Team members</div>
-        <div class="team-name">Nidhish Bansal</div>
-        <div class="team-name">Yash Vishnoi</div>
+        <a class="team-link" href="https://github.com/Nidhish01" target="_blank" rel="noopener noreferrer">
+            <svg class="github-mark" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="currentColor" d="M12 2C6.48 2 2 6.58 2 12.26c0 4.54 2.87 8.39 6.84 9.75.5.1.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.21-3.37-1.21-.45-1.18-1.11-1.49-1.11-1.49-.91-.64.07-.63.07-.63 1 .08 1.53 1.06 1.53 1.06.89 1.57 2.34 1.12 2.91.85.09-.67.35-1.12.63-1.38-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.31.1-2.72 0 0 .84-.28 2.75 1.05A9.3 9.3 0 0 1 12 6.18a9.3 9.3 0 0 1 2.5.35c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.64 1.03 2.76 0 3.94-2.34 4.8-4.57 5.06.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.59.69.49A10.3 10.3 0 0 0 22 12.26C22 6.58 17.52 2 12 2Z"/>
+            </svg>
+            <span>Nidhish Bansal</span>
+        </a>
+        <a class="team-link" href="https://github.com/yvishi" target="_blank" rel="noopener noreferrer">
+            <svg class="github-mark" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="currentColor" d="M12 2C6.48 2 2 6.58 2 12.26c0 4.54 2.87 8.39 6.84 9.75.5.1.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.21-3.37-1.21-.45-1.18-1.11-1.49-1.11-1.49-.91-.64.07-.63.07-.63 1 .08 1.53 1.06 1.53 1.06.89 1.57 2.34 1.12 2.91.85.09-.67.35-1.12.63-1.38-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.31.1-2.72 0 0 .84-.28 2.75 1.05A9.3 9.3 0 0 1 12 6.18a9.3 9.3 0 0 1 2.5.35c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.64 1.03 2.76 0 3.94-2.34 4.8-4.57 5.06.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.59.69.49A10.3 10.3 0 0 0 22 12.26C22 6.58 17.52 2 12 2Z"/>
+            </svg>
+            <span>Yash Vishnoi</span>
+        </a>
     </div>
     """,
     unsafe_allow_html=True,

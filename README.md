@@ -7,6 +7,31 @@ This BTech Machine Learning lab project uses historical agricultural and weather
 - Nidhish Bansal
 - Yash Vishnoi
 
+## Dashboard Preview
+
+<table>
+  <tr>
+    <td width="50%">
+      <strong>Project Overview</strong><br>
+      <img src="screenshots/overview.png" alt="Crop yield dashboard overview">
+    </td>
+    <td width="50%">
+      <strong>Explore Data</strong><br>
+      <img src="screenshots/explore-data.png" alt="Crop yield data exploration dashboard">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <strong>Predict Yield</strong><br>
+      <img src="screenshots/predict-yield.png" alt="Interactive crop yield prediction form">
+    </td>
+    <td width="50%">
+      <strong>Model Performance</strong><br>
+      <img src="screenshots/model-performance.png" alt="Machine learning model comparison dashboard">
+    </td>
+  </tr>
+</table>
+
 ## Project Objective
 
 Crop yield depends on several factors, such as rainfall, temperature, pesticide usage, crop type, location, and year. The objective of this project is to compare multiple regression algorithms and identify the model that predicts crop yield most accurately.
@@ -103,6 +128,11 @@ Crop-Yield-Prediction/
 |-- app.py
 |-- README.md
 |-- requirements.txt
+|-- screenshots/
+|   |-- overview.png
+|   |-- explore-data.png
+|   |-- predict-yield.png
+|   `-- model-performance.png
 `-- dataset/
     |-- yield_df.csv
     |-- yield.csv

@@ -1,6 +1,6 @@
 # Crop Yield Prediction
 
-This BTech Machine Learning lab project uses historical agricultural and weather data to predict crop yield. It demonstrates the complete machine learning workflow, including data cleaning, exploratory data analysis, preprocessing, model training, hyperparameter tuning, evaluation, and interpretation.
+This BTech Machine Learning lab project uses historical agricultural and weather data to predict crop yield. It demonstrates the complete machine learning workflow, including data cleaning, exploratory data analysis, preprocessing, model training, hyperparameter tuning, evaluation, interpretation, and an interactive Streamlit dashboard.
 
 ## Team Members
 
@@ -69,7 +69,7 @@ The Random Forest performed best because it captured nonlinear relationships whi
 2. Install the required Python packages:
 
    ```bash
-   pip install pandas numpy matplotlib seaborn scikit-learn jupyter
+   pip install -r requirements.txt
    ```
 
 3. Start Jupyter Notebook:
@@ -80,12 +80,27 @@ The Random Forest performed best because it captured nonlinear relationships whi
 
 4. Open `Crop_Yield_Prediction.ipynb` and select **Run All**.
 
+### Run the Streamlit Dashboard
+
+```bash
+streamlit run app.py
+```
+
+The dashboard provides four sections:
+
+- Project summary and dataset statistics
+- Country- and crop-based data exploration
+- Interactive crop-yield prediction
+- Model-performance comparison
+
 ## Repository Structure
 
 ```text
 Crop-Yield-Prediction/
 |-- Crop_Yield_Prediction.ipynb
+|-- app.py
 |-- README.md
+|-- requirements.txt
 `-- dataset/
     |-- yield_df.csv
     |-- yield.csv

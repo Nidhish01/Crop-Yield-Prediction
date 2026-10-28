@@ -97,6 +97,8 @@ The dashboard provides four sections:
 
 ```text
 Crop-Yield-Prediction/
+|-- .streamlit/
+|   `-- config.toml
 |-- Crop_Yield_Prediction.ipynb
 |-- app.py
 |-- README.md

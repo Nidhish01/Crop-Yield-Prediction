@@ -31,19 +31,218 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-        .stApp {background-color: #f6f8f3;}
-        [data-testid="stSidebar"] {background-color: #eaf2e3;}
-        .main-title {color: #245c32; font-size: 2.5rem; font-weight: 750;}
-        .subtitle {color: #52634f; font-size: 1.05rem; margin-bottom: 1.5rem;}
+        :root {
+            --teal: #0b4650;
+            --teal-light: #165b65;
+            --gold: #d2a33a;
+            --ink: #17383d;
+            --muted: #66777a;
+            --canvas: #edf2f0;
+            --card: #ffffff;
+        }
+
+        .stApp {background: var(--canvas);}
+        .main .block-container {
+            max-width: 1180px;
+            padding: 2rem 2.25rem 3rem;
+        }
+
+        /* Sidebar navigation */
+        [data-testid="stSidebar"] {
+            background: var(--teal);
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        [data-testid="stSidebar"] [data-testid="stSidebarContent"] {
+            padding: 1.25rem 0.85rem;
+        }
+        [data-testid="stSidebar"] p,
+        [data-testid="stSidebar"] span,
+        [data-testid="stSidebar"] label,
+        [data-testid="stSidebar"] h1,
+        [data-testid="stSidebar"] h2,
+        [data-testid="stSidebar"] h3 {
+            color: #f5f8f7 !important;
+        }
+        .brand-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            padding: 0.2rem 0.35rem 1.4rem;
+        }
+        .brand-mark {
+            width: 2.25rem;
+            height: 2.25rem;
+            display: grid;
+            place-items: center;
+            border: 1px solid var(--gold);
+            border-radius: 50%;
+            color: var(--gold);
+            font-family: Georgia, serif;
+            font-weight: 700;
+        }
+        .brand-name {
+            color: white;
+            font-family: Georgia, serif;
+            font-size: 1.08rem;
+            font-weight: 700;
+            line-height: 1.1;
+        }
+        .brand-tagline {
+            color: #b9cdcf;
+            font-size: 0.7rem;
+            margin-top: 0.15rem;
+        }
+        [data-testid="stSidebar"] div[role="radiogroup"] label {
+            border-radius: 7px;
+            margin: 0.2rem 0;
+            padding: 0.55rem 0.65rem;
+            transition: background 0.15s ease;
+        }
+        [data-testid="stSidebar"] div[role="radiogroup"] label:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+        [data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {
+            background: var(--teal-light);
+            box-shadow: inset 3px 0 0 var(--gold);
+        }
+        [data-testid="stSidebar"] label[data-testid="stRadioOption"] > div > div > div:first-child {
+            display: none !important;
+        }
+        .team-card {
+            border-top: 1px solid rgba(255, 255, 255, 0.14);
+            margin-top: 1.1rem;
+            padding: 1.2rem 0.4rem 0;
+        }
+        .team-label {
+            color: #9fb9bc;
+            font-size: 0.67rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 0.55rem;
+        }
+        .team-name {color: white; font-size: 0.86rem; margin: 0.25rem 0;}
+
+        /* Page typography */
+        .page-kicker {
+            color: #a47717;
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            margin-bottom: 0.35rem;
+        }
+        .main-title {
+            color: var(--ink);
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 2.25rem;
+            font-weight: 700;
+            line-height: 1.15;
+        }
+        .subtitle {
+            color: var(--muted);
+            font-size: 1rem;
+            margin: 0.45rem 0 1.65rem;
+        }
+        h1, h2, h3 {
+            color: var(--ink) !important;
+            font-family: Georgia, 'Times New Roman', serif !important;
+        }
+        h2 {font-size: 1.35rem !important;}
+        h3 {font-size: 1.08rem !important;}
+
+        /* Dashboard cards */
         div[data-testid="stMetric"] {
+            background: var(--card);
+            border: 1px solid #dce5e2;
+            border-top: 3px solid var(--gold);
+            border-radius: 9px;
+            padding: 1rem 1.05rem;
+            box-shadow: 0 4px 14px rgba(24, 57, 61, 0.07);
+        }
+        div[data-testid="stMetricLabel"] p {
+            color: var(--muted);
+            font-size: 0.78rem;
+        }
+        div[data-testid="stMetricValue"] {
+            color: var(--teal);
+            font-family: Georgia, 'Times New Roman', serif;
+        }
+        div[data-testid="stMetricValue"] p {
+            font-size: 1.9rem !important;
+            white-space: nowrap;
+            overflow: visible;
+            text-overflow: clip;
+        }
+        [data-testid="stForm"] {
+            background: var(--card);
+            border: 1px solid #dce5e2;
+            border-top: 4px solid var(--gold);
+            border-radius: 10px;
+            padding: 1.25rem 1.4rem 1.35rem;
+            box-shadow: 0 6px 18px rgba(24, 57, 61, 0.07);
+        }
+        [data-testid="stImage"] {
+            background: var(--card);
+            border: 1px solid #dce5e2;
+            border-radius: 10px;
+            padding: 0.6rem;
+            box-shadow: 0 5px 16px rgba(24, 57, 61, 0.06);
+        }
+        [data-testid="stDataFrame"], [data-testid="stTable"] {
+            border: 1px solid #dce5e2;
+            border-radius: 9px;
+            overflow: hidden;
+            box-shadow: 0 4px 14px rgba(24, 57, 61, 0.05);
+        }
+        [data-testid="stExpander"] {
             background: white;
-            border: 1px solid #dce7d7;
-            border-radius: 12px;
-            padding: 14px;
+            border: 1px solid #dce5e2;
+            border-radius: 9px;
+        }
+        .stButton > button,
+        [data-testid="stFormSubmitButton"] > button {
+            background: var(--teal);
+            border: 1px solid var(--teal);
+            color: white;
+            border-radius: 7px;
+            font-weight: 700;
+            min-height: 2.7rem;
+        }
+        .stButton > button:hover,
+        [data-testid="stFormSubmitButton"] > button:hover {
+            background: var(--teal-light);
+            border-color: var(--gold);
+            color: white;
+        }
+        [data-testid="stAlert"] {
+            border-radius: 8px;
+            border-left-width: 4px;
+        }
+        hr {border-color: #d8e2df !important;}
+        a {color: var(--teal-light) !important;}
+
+        @media (max-width: 768px) {
+            .main .block-container {padding: 1.25rem 1rem 2rem;}
+            .main-title {font-size: 1.8rem;}
         }
     </style>
     """,
     unsafe_allow_html=True,
+)
+
+sns.set_theme(style="whitegrid", palette=["#0b4650", "#d2a33a"])
+plt.rcParams.update(
+    {
+        "figure.facecolor": "white",
+        "axes.facecolor": "white",
+        "axes.edgecolor": "#dce5e2",
+        "axes.titlecolor": "#17383d",
+        "axes.labelcolor": "#52666a",
+        "xtick.color": "#65777a",
+        "ytick.color": "#65777a",
+        "grid.color": "#e8eeec",
+    }
 )
 
 
@@ -87,33 +286,55 @@ def train_model(data):
 
 
 def show_header(title, subtitle):
+    st.markdown(
+        '<div class="page-kicker">Agricultural intelligence</div>',
+        unsafe_allow_html=True,
+    )
     st.markdown(f'<div class="main-title">{title}</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="subtitle">{subtitle}</div>', unsafe_allow_html=True)
 
 
 data = load_data()
 
-st.sidebar.title("🌾 Crop Yield ML")
-st.sidebar.caption("BTech Machine Learning Lab Project")
-page = st.sidebar.radio(
-    "Navigate",
-    ["Project Overview", "Explore Data", "Predict Yield", "Model Performance"],
+st.sidebar.markdown(
+    """
+    <div class="brand-wrap">
+        <div class="brand-mark">CY</div>
+        <div>
+            <div class="brand-name">CropYield</div>
+            <div class="brand-tagline">Prediction dashboard</div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
-st.sidebar.divider()
-st.sidebar.markdown("**Team Members**")
-st.sidebar.write("Nidhish Bansal")
-st.sidebar.write("Yash Vishnoi")
+page = st.sidebar.radio(
+    "Navigation",
+    ["Overview", "Explore data", "Predict yield", "Model performance"],
+    label_visibility="collapsed",
+)
+st.sidebar.markdown(
+    """
+    <div class="team-card">
+        <div class="team-label">Team members</div>
+        <div class="team-name">Nidhish Bansal</div>
+        <div class="team-name">Yash Vishnoi</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 
-if page == "Project Overview":
+if page == "Overview":
     show_header(
         "Crop Yield Prediction Dashboard",
         "Explore historical agricultural data and estimate crop yield with machine learning.",
     )
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2 = st.columns(2)
     col1.metric("Observations", f"{len(data):,}")
     col2.metric("Countries", data["Area"].nunique())
+    col3, col4 = st.columns(2)
     col3.metric("Crops", data["Item"].nunique())
     col4.metric("Year Range", f"{data['Year'].min()}–{data['Year'].max()}")
 
@@ -161,7 +382,7 @@ if page == "Project Overview":
     )
 
 
-elif page == "Explore Data":
+elif page == "Explore data":
     show_header(
         "Explore the Dataset",
         "Filter the historical records to understand differences between countries and crops.",
@@ -224,7 +445,7 @@ elif page == "Explore Data":
         st.dataframe(filtered, width="stretch", hide_index=True)
 
 
-elif page == "Predict Yield":
+elif page == "Predict yield":
     show_header(
         "Predict Crop Yield",
         "Enter an agricultural scenario and let the trained Random Forest estimate its yield.",
@@ -334,7 +555,14 @@ else:
     left, right = st.columns(2)
     with left:
         fig, ax = plt.subplots(figsize=(8, 5))
-        sns.barplot(data=performance, x="Model", y="RMSE", hue="Split", ax=ax)
+        sns.barplot(
+            data=performance,
+            x="Model",
+            y="RMSE",
+            hue="Split",
+            palette=["#0b4650", "#d2a33a"],
+            ax=ax,
+        )
         ax.set_title("RMSE comparison")
         ax.tick_params(axis="x", rotation=15)
         ax.set_xlabel("")
@@ -343,7 +571,14 @@ else:
 
     with right:
         fig, ax = plt.subplots(figsize=(8, 5))
-        sns.barplot(data=performance, x="Model", y="Test R²", hue="Split", ax=ax)
+        sns.barplot(
+            data=performance,
+            x="Model",
+            y="Test R²",
+            hue="Split",
+            palette=["#0b4650", "#d2a33a"],
+            ax=ax,
+        )
         ax.set_title("Test R² comparison")
         ax.tick_params(axis="x", rotation=15)
         ax.set_xlabel("")

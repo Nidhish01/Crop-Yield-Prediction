@@ -1,5 +1,7 @@
 # Crop Yield Prediction
 
+[**Open the live CropCast ML dashboard →**](https://cropcast-ml.streamlit.app/)
+
 This BTech Machine Learning lab project uses historical agricultural and weather data to predict crop yield. It demonstrates the complete machine learning workflow, including data cleaning, exploratory data analysis, preprocessing, model training, hyperparameter tuning, evaluation, interpretation, and an interactive Streamlit dashboard.
 
 ## Team Members

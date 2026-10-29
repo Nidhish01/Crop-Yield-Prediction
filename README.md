@@ -11,6 +11,8 @@ This BTech Machine Learning lab project uses historical agricultural and weather
 
 ## Dashboard Preview
 
+These screenshots show the original dashboard. The current app also includes the advanced-model selector and comparison described below.
+
 <table>
   <tr>
     <td width="50%">
@@ -58,13 +60,32 @@ The `dataset` folder also contains the original yield, rainfall, temperature, an
 
 ## Machine Learning Models
 
-Three regression models are compared:
+The original notebook compares three regression models:
 
 1. Linear Regression
 2. Decision Tree Regressor
 3. Random Forest Regressor
 
 The Random Forest is tuned using a small grid search with expanding-year validation.
+
+### Advanced Models and Future Scenarios
+
+[`Advanced_Crop_Yield_Prediction.ipynb`](Advanced_Crop_Yield_Prediction.ipynb) adds Histogram Gradient Boosting, Extra Trees, and a neural network with three hidden layers (128, 64, 32 neurons), alongside a freshly rerun Random Forest reference. It includes executed results, eight figures, simple explanations, and viva questions.
+
+Model selection uses **1990–2005 training and 2006–2009 validation**. Final evaluation refits on **1990–2009** and tests on **2010–2013**.
+
+| Model | Validation RMSE | Test MAE | Test RMSE | Test R² |
+|---|---:|---:|---:|---:|
+| Extra Trees | 16,102.478 | 10,152.975 | 19,942.622 | 0.956 |
+| Neural Network | 18,661.863 | 11,221.705 | 19,397.042 | 0.959 |
+| Histogram Gradient Boosting | 20,919.691 | 13,459.170 | 23,347.448 | 0.940 |
+| Random Forest reference | 16,732.869 | 10,442.003 | 20,533.341 | 0.954 |
+
+Errors are in hg/ha. **Extra Trees is the dashboard default** because it won on validation RMSE. The neural network had the lowest final-test RMSE, but the test period is not used to change the selected model. Extra Trees reduced test RMSE by 2.88% against this rerun reference. R² is not percentage accuracy.
+
+The prediction page lets you choose any of these four models. It fits the requested model on all available 1990–2013 data and caches one fitted model at a time. Supply a year and weather/pesticide assumptions to obtain a conditional yield estimate. First-time training may take a minute. All models learn from history; a neural network does not guarantee reliable extrapolation beyond 2013.
+
+[`advanced_future_yield_models.py`](advanced_future_yield_models.py) contains the standalone initial advanced experiment and reusable model definitions used by the dashboard. Its standalone winner is selected using test RMSE; use the separate notebook's earlier-validation procedure for the more defensible lab comparison.
 
 ## Evaluation
 
@@ -75,7 +96,7 @@ The models are tested using two approaches:
 
 The evaluation metrics are MAE, RMSE, and R².
 
-### Main Results
+### Original Notebook Results
 
 | Evaluation split | Best model | MAE | RMSE | R² |
 |---|---|---:|---:|---:|
@@ -105,7 +126,7 @@ The Random Forest performed best because it captured nonlinear relationships whi
    jupyter notebook
    ```
 
-4. Open `Crop_Yield_Prediction.ipynb` and select **Run All**.
+4. Open `Crop_Yield_Prediction.ipynb` or `Advanced_Crop_Yield_Prediction.ipynb` and select **Run All**.
 
 ### Run the Streamlit Dashboard
 
@@ -117,8 +138,8 @@ The dashboard provides four sections:
 
 - Project summary and dataset statistics
 - Country- and crop-based data exploration
-- Interactive crop-yield prediction
-- Model-performance comparison
+- Interactive crop-yield prediction with an advanced-model selector
+- Original and advanced model-performance comparisons
 
 ## Repository Structure
 
@@ -127,6 +148,8 @@ Crop-Yield-Prediction/
 |-- .streamlit/
 |   `-- config.toml
 |-- Crop_Yield_Prediction.ipynb
+|-- Advanced_Crop_Yield_Prediction.ipynb
+|-- advanced_future_yield_models.py
 |-- app.py
 |-- README.md
 |-- requirements.txt

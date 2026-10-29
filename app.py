@@ -1,13 +1,15 @@
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import streamlit as st
-from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from threadpoolctl import threadpool_limits
+
+from advanced_future_yield_models import make_models, make_preprocessor
 
 
 DATA_PATH = Path(__file__).parent / "dataset" / "yield_df.csv"
@@ -20,6 +22,19 @@ NUMERIC_FEATURES = [
     "avg_temp",
 ]
 FEATURES = CATEGORICAL_FEATURES + NUMERIC_FEATURES
+SELECTED_MODEL = "Extra Trees"
+MODEL_OPTIONS = [SELECTED_MODEL, "Neural Network (MLP)",
+                 "Histogram Gradient Boosting", "Random Forest (reference)"]
+
+
+def advanced_results():
+    """Recorded, rounded results from the executed advanced notebook."""
+    return pd.DataFrame([
+        ["Extra Trees", 16102.478, 10152.975, 19942.622, 0.956, 0.997],
+        ["Neural Network (MLP)", 18661.863, 11221.705, 19397.042, 0.959, 0.991],
+        ["Histogram Gradient Boosting", 20919.691, 13459.170, 23347.448, 0.940, 0.977],
+        ["Random Forest (reference)", 16732.869, 10442.003, 20533.341, 0.954, 0.997],
+    ], columns=["Model", "Validation RMSE", "Test MAE", "Test RMSE", "Test R²", "Train R²"])
 
 
 st.set_page_config(
@@ -274,35 +289,20 @@ def load_data():
     return data.drop(columns=["Unnamed: 0"], errors="ignore")
 
 
-@st.cache_resource(show_spinner="Training the Random Forest model...")
-def train_model(data):
-    """Train the same tuned Random Forest used in the notebook."""
-    preprocessor = ColumnTransformer(
-        transformers=[
-            (
-                "categories",
-                OneHotEncoder(handle_unknown="ignore"),
-                CATEGORICAL_FEATURES,
-            ),
-            ("numbers", StandardScaler(), NUMERIC_FEATURES),
-        ]
-    )
-
-    model = RandomForestRegressor(
-        n_estimators=50,
-        max_depth=None,
-        min_samples_split=5,
-        random_state=42,
-        n_jobs=1,
-    )
-
-    pipeline = Pipeline(
-        steps=[
-            ("preprocessor", preprocessor),
-            ("model", model),
-        ]
-    )
-    pipeline.fit(data[FEATURES], data[TARGET])
+@st.cache_resource(show_spinner="Training the selected model on historical data...", max_entries=1)
+def train_model(data, model_name):
+    """Fit only the requested model; keep one fitted model cached to limit memory."""
+    models = make_models(make_preprocessor())
+    models["Random Forest (reference)"] = Pipeline([
+        ("preprocessing", make_preprocessor()),
+        ("model", RandomForestRegressor(
+            n_estimators=50, min_samples_split=5, random_state=42, n_jobs=1))
+    ])
+    pipeline = models[model_name]
+    if model_name == "Extra Trees":
+        pipeline.set_params(model__n_jobs=1)
+    with threadpool_limits(limits=2):
+        pipeline.fit(data[FEATURES], data[TARGET])
     return pipeline
 
 
@@ -372,9 +372,13 @@ if page == "Overview":
     st.subheader("About the project")
     st.write(
         "Crop yield is influenced by location, crop type, rainfall, temperature, "
-        "pesticide use, and time. This project compares Linear Regression, a Decision "
-        "Tree, and a Random Forest. The tuned Random Forest produced the best results."
+        "pesticide use, and time. Alongside the original regression models, we now "
+        "compare Extra Trees, Histogram Gradient Boosting, and a neural network. "
+        "Extra Trees is the default prediction model because it had the lowest "
+        "RMSE on the 2006–2009 validation period."
     )
+    st.caption("Final evaluation: train on 1990–2009, test on 2010–2013. "
+               "The neural network had the lowest test RMSE; model selection used earlier validation years.")
 
     left, right = st.columns(2)
     with left:
@@ -479,8 +483,13 @@ elif page == "Explore data":
 elif page == "Predict yield":
     show_header(
         "Predict Crop Yield",
-        "Enter an agricultural scenario and let the trained Random Forest estimate its yield.",
+        "Choose a model and supply future weather assumptions to estimate crop yield.",
     )
+
+    model_name = st.selectbox("Prediction model", MODEL_OPTIONS)
+    st.caption("Default: Extra Trees, selected using 2006–2009 validation. "
+               "Models are fitted on all 1990–2013 records for scenario predictions. "
+               "The first prediction trains the selected model and may take a minute.")
 
     countries = sorted(data["Area"].unique())
     crops = sorted(data["Item"].unique())
@@ -492,7 +501,7 @@ elif page == "Predict yield":
         crop = col2.selectbox("Crop", crops)
 
         col3, col4 = st.columns(2)
-        year = col3.slider("Year", 1990, 2030, 2013)
+        year = col3.slider("Year", 1990, 2030, 2014)
         rainfall = col4.number_input(
             "Average rainfall (mm/year)",
             min_value=0.0,
@@ -533,11 +542,14 @@ elif page == "Predict yield":
             ]
         )
 
-        model = train_model(data)
-        predicted_yield = max(0.0, float(model.predict(input_data)[0]))
+        model = train_model(data, model_name)
+        predicted_yield = float(model.predict(input_data)[0])
+        if not np.isfinite(predicted_yield) or predicted_yield < 0:
+            st.error("This model produced an invalid yield for this scenario. Review the inputs or try another model.")
+            st.stop()
         tonnes_per_hectare = predicted_yield / 10_000
 
-        st.success("Prediction completed")
+        st.success(f"Prediction completed using {model_name}")
         result1, result2 = st.columns(2)
         result1.metric("Predicted yield", f"{predicted_yield:,.0f} hg/ha")
         result2.metric("Converted yield", f"{tonnes_per_hectare:,.2f} tonnes/ha")
@@ -547,21 +559,58 @@ elif page == "Predict yield":
 
         if year > int(data["Year"].max()):
             st.warning(
-                "This year is outside the 1990–2013 training period. Tree models cannot "
-                "reliably extrapolate long-term trends, so interpret the result carefully."
+                "This year is beyond the observed history ending in 2013. "
+                "Tree models do not extend time trends beyond learned splits, and neural-network "
+                "extrapolation is also uncertain. Distant-year predictions need recent data and validation."
             )
 
+        for feature in NUMERIC_FEATURES[1:]:
+            if not data[feature].min() <= input_data.iloc[0][feature] <= data[feature].max():
+                st.warning(f"{feature} is outside the observed historical range.")
+        if data[(data.Area == country) & (data.Item == crop)].empty:
+            st.warning("This country/crop combination has no observed records in the dataset.")
+
         st.caption(
-            "The estimate comes from the tuned Random Forest trained on the complete "
-            "historical dataset. It is intended for demonstration and learning only."
+            "Yield is conditional on the supplied weather and pesticide assumptions. "
+            "This does not forecast those inputs or provide a prediction interval."
         )
 
 
 else:
     show_header(
         "Model Performance",
-        "Compare the three regression approaches used in the project notebook.",
+        "Compare the original models and the advanced chronological experiment.",
     )
+
+    experiment = st.radio("Experiment", ["Advanced models", "Original models"], horizontal=True)
+    if experiment == "Advanced models":
+        performance = advanced_results()
+        st.success("Default model: Extra Trees — lowest validation RMSE (16,102.478 hg/ha).")
+        st.write("Model selection: fit 1990–2005, validate 2006–2009. "
+                 "Final evaluation: refit 1990–2009, test 2010–2013. "
+                 "The neural network has the lowest final-test RMSE, while Extra Trees has the "
+                 "lowest final-test MAE. We keep the model chosen before viewing the test results.")
+        st.caption("Saved results from Advanced_Crop_Yield_Prediction.ipynb; "
+                   "this page does not retrain the evaluation models. Errors are in hg/ha; R² is not percentage accuracy.")
+        st.dataframe(performance, width="stretch", hide_index=True)
+        left, right = st.columns(2)
+        for column, metric in [(left, "Test RMSE"), (right, "Test R²")]:
+            with column:
+                fig, ax = plt.subplots(figsize=(8, 5))
+                sns.barplot(data=performance, y="Model", x=metric, color="#0b4650", ax=ax)
+                ax.set_title(metric + (" — lower is better" if metric == "Test RMSE" else " — higher is better"))
+                ax.set_ylabel("")
+                fig.tight_layout()
+                st.pyplot(fig)
+                plt.close(fig)
+        st.write("Extra Trees reduced test RMSE by 2.88% against the freshly rerun Random Forest "
+                 "reference. This is one historical time window, not a guarantee of future performance.")
+        with st.expander("How the advanced models work"):
+            st.markdown("- **Extra Trees:** averages trees with randomized split thresholds.\n"
+                        "- **Gradient Boosting:** adds trees to correct earlier prediction errors.\n"
+                        "- **Neural network:** three hidden layers (128, 64, 32 neurons) learn nonlinear feature combinations.\n"
+                        "- **Random Forest reference:** checks whether the advanced models improve on the earlier approach.")
+        st.stop()
 
     performance = pd.DataFrame(
         [

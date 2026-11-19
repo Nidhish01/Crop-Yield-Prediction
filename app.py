@@ -10,6 +10,7 @@ from sklearn.pipeline import Pipeline
 from threadpoolctl import threadpool_limits
 
 from advanced_future_yield_models import make_models, make_preprocessor
+from ensemble_models import ENSEMBLE_NAMES, make_base_models, make_ensemble
 
 
 DATA_PATH = Path(__file__).parent / "dataset" / "yield_df.csv"
@@ -24,7 +25,24 @@ NUMERIC_FEATURES = [
 FEATURES = CATEGORICAL_FEATURES + NUMERIC_FEATURES
 SELECTED_MODEL = "Extra Trees"
 MODEL_OPTIONS = [SELECTED_MODEL, "Neural Network (MLP)",
-                 "Histogram Gradient Boosting", "Random Forest (reference)"]
+                 "Histogram Gradient Boosting", "Random Forest (reference)"] + ENSEMBLE_NAMES
+TREE_PIPELINES = ["Extra Trees", "Histogram Gradient Boosting", "Random Forest (reference)"]
+SHAP_BACKGROUND_ROWS = 50
+SHAP_IMPORTANCE_ROWS = 100
+
+# Recorded from ensemble_models.py (weights from 2006–2009 validation RMSE, proportional
+# to 1 / RMSE²). Hard-coded so the app never reruns the full experiment.
+ENSEMBLE_WEIGHTS = {
+    "Extra Trees": 0.4279,
+    "Histogram Gradient Boosting": 0.2535,
+    "Neural Network (MLP)": 0.3186,
+}
+STACKING_COEFFICIENTS = {
+    "Extra Trees": 0.8156,
+    "Histogram Gradient Boosting": 0.0000,
+    "Neural Network (MLP)": 0.2081,
+}
+STACKING_INTERCEPT = 618.15
 
 
 def advanced_results():
@@ -35,6 +53,18 @@ def advanced_results():
         ["Histogram Gradient Boosting", 20919.691, 13459.170, 23347.448, 0.940, 0.977],
         ["Random Forest (reference)", 16732.869, 10442.003, 20533.341, 0.954, 0.997],
     ], columns=["Model", "Validation RMSE", "Test MAE", "Test RMSE", "Test R²", "Train R²"])
+
+
+def ensemble_results():
+    """Recorded results from ensemble_models.py, sorted by validation RMSE."""
+    return pd.DataFrame([
+        ["Stacking", "Ensemble", 15616.21, 9273.16, 18270.33, 0.9634],
+        ["Extra Trees", "Base", 16102.48, 10152.98, 19942.62, 0.9564],
+        ["Weighted Average", "Ensemble", 16687.65, 10049.13, 18655.47, 0.9619],
+        ["Simple Average", "Ensemble", 17023.91, 10326.79, 18818.90, 0.9612],
+        ["Neural Network (MLP)", "Base", 18661.86, 11221.70, 19397.04, 0.9588],
+        ["Histogram Gradient Boosting", "Base", 20919.69, 13459.17, 23347.45, 0.9403],
+    ], columns=["Model", "Type", "Validation RMSE", "Test MAE", "Test RMSE", "Test R²"])
 
 
 st.set_page_config(
@@ -289,9 +319,28 @@ def load_data():
     return data.drop(columns=["Unnamed: 0"], errors="ignore")
 
 
-@st.cache_resource(show_spinner="Training the selected model on historical data...", max_entries=1)
+def training_message(model_name):
+    if model_name == "Stacking":
+        return ("Training Stacking: 3 base models are fitted on 4 time folds to train the "
+                "meta-model, then refitted on all data (15 fits). This can take a few minutes...")
+    if model_name in ENSEMBLE_NAMES:
+        return (f"Training {model_name}: fitting Extra Trees, Histogram Gradient Boosting "
+                "and the neural network on historical data...")
+    return f"Training {model_name} on historical data..."
+
+
+@st.cache_resource(show_spinner=False, max_entries=1)
 def train_model(data, model_name):
     """Fit only the requested model; keep one fitted model cached to limit memory."""
+    if model_name in ENSEMBLE_NAMES:
+        base_models = make_base_models()
+        base_models["Extra Trees"].set_params(model__n_jobs=1)
+        weights = ENSEMBLE_WEIGHTS if model_name == "Weighted Average" else None
+        ensemble = make_ensemble(model_name, weights).set_params(base_models=base_models)
+        with threadpool_limits(limits=2):
+            ensemble.fit(data[FEATURES], data[TARGET])
+        return ensemble
+
     models = make_models(make_preprocessor())
     models["Random Forest (reference)"] = Pipeline([
         ("preprocessing", make_preprocessor()),
@@ -304,6 +353,37 @@ def train_model(data, model_name):
     with threadpool_limits(limits=2):
         pipeline.fit(data[FEATURES], data[TARGET])
     return pipeline
+
+
+@st.cache_data(show_spinner=False)
+def shap_background(data):
+    """Small fixed sample of historical rows used as the SHAP reference."""
+    return data[FEATURES].sample(n=SHAP_BACKGROUND_ROWS, random_state=42).reset_index(drop=True)
+
+
+def explain_scenario(model, model_name, input_data, background):
+    """SHAP values for one scenario on the 6 original features."""
+    # Imported lazily: shap is only needed once a prediction is explained.
+    from explainability import explain_model, explain_tree_pipeline
+
+    with threadpool_limits(limits=2):
+        if model_name in TREE_PIPELINES:
+            return explain_tree_pipeline(model, input_data, X_background=background,
+                                         n_background=SHAP_BACKGROUND_ROWS)
+        return explain_model(model, background, input_data, max_background=SHAP_BACKGROUND_ROWS)
+
+
+@st.cache_data(show_spinner="Computing SHAP values for 100 historical rows...", max_entries=1)
+def extra_trees_importance(data):
+    """Global mean |SHAP| for the default Extra Trees model (100 sampled rows)."""
+    from explainability import explain_tree_pipeline, shap_importance_table
+
+    model = train_model(data, SELECTED_MODEL)
+    rows = data[FEATURES].sample(n=SHAP_IMPORTANCE_ROWS, random_state=7)
+    with threadpool_limits(limits=2):
+        explanation = explain_tree_pipeline(model, rows, X_background=shap_background(data),
+                                            n_background=SHAP_BACKGROUND_ROWS)
+    return shap_importance_table(explanation)
 
 
 def show_header(title, subtitle):
@@ -373,9 +453,10 @@ if page == "Overview":
     st.write(
         "Crop yield is influenced by location, crop type, rainfall, temperature, "
         "pesticide use, and time. Alongside the original regression models, we now "
-        "compare Extra Trees, Histogram Gradient Boosting, and a neural network. "
-        "Extra Trees is the default prediction model because it had the lowest "
-        "RMSE on the 2006–2009 validation period."
+        "compare Extra Trees, Histogram Gradient Boosting, a neural network, and three "
+        "ensembles that combine them. Extra Trees is the default prediction model because "
+        "it had the lowest 2006–2009 validation RMSE among single models; a stacking "
+        "ensemble improves on it, and SHAP explains each prediction."
     )
     st.caption("Final evaluation: train on 1990–2009, test on 2010–2013. "
                "The neural network had the lowest test RMSE; model selection used earlier validation years.")
@@ -486,10 +567,18 @@ elif page == "Predict yield":
         "Choose a model and supply future weather assumptions to estimate crop yield.",
     )
 
-    model_name = st.selectbox("Prediction model", MODEL_OPTIONS)
-    st.caption("Default: Extra Trees, selected using 2006–2009 validation. "
+    model_name = st.selectbox(
+        "Prediction model",
+        MODEL_OPTIONS,
+        help="Stacking has the lowest 2006–2009 validation RMSE of all models (15,616 hg/ha). "
+             "Simple Average, Weighted Average and Stacking combine Extra Trees, Histogram "
+             "Gradient Boosting and the neural network.",
+    )
+    st.caption("Default: Extra Trees, the best single model on 2006–2009 validation. "
+               "Best overall by validation RMSE: Stacking, which takes longest to train. "
                "Models are fitted on all 1990–2013 records for scenario predictions. "
-               "The first prediction trains the selected model and may take a minute.")
+               "The first prediction trains the selected model and may take a minute "
+               "(several minutes for Stacking).")
 
     countries = sorted(data["Area"].unique())
     crops = sorted(data["Item"].unique())
@@ -542,7 +631,8 @@ elif page == "Predict yield":
             ]
         )
 
-        model = train_model(data, model_name)
+        with st.spinner(training_message(model_name)):
+            model = train_model(data, model_name)
         predicted_yield = float(model.predict(input_data)[0])
         if not np.isfinite(predicted_yield) or predicted_yield < 0:
             st.error("This model produced an invalid yield for this scenario. Review the inputs or try another model.")
@@ -575,14 +665,123 @@ elif page == "Predict yield":
             "This does not forecast those inputs or provide a prediction interval."
         )
 
+        st.markdown("#### Why this prediction? (SHAP)")
+        try:
+            with st.spinner("Explaining the prediction with SHAP..."):
+                explanation = explain_scenario(model, model_name, input_data, shap_background(data))
+                from explainability import explain_single_prediction, plot_waterfall
+
+                fig = plot_waterfall(explanation, 0, title=f"Why {model_name} predicts "
+                                     f"{predicted_yield:,.0f} hg/ha")
+        except Exception as error:  # keep the prediction visible if SHAP fails
+            st.warning(f"The SHAP explanation could not be computed: {error}")
+        else:
+            st.write(explain_single_prediction(explanation, 0))
+            st.pyplot(fig)
+            plt.close(fig)
+            st.caption(
+                f"Start: the average prediction over {SHAP_BACKGROUND_ROWS} sampled historical rows. "
+                "Each bar shows how many hg/ha one input pushed this prediction up (red) or "
+                "down (blue); together they add up exactly to the prediction. "
+                "SHAP describes how the model uses the inputs, not what causes yield in the field."
+            )
+
 
 else:
     show_header(
         "Model Performance",
-        "Compare the original models and the advanced chronological experiment.",
+        "Compare the original models, the advanced chronological experiment, and the ensembles.",
     )
 
-    experiment = st.radio("Experiment", ["Advanced models", "Original models"], horizontal=True)
+    experiment = st.radio("Experiment", ["Advanced models", "Ensembles", "Original models"],
+                          horizontal=True)
+    if experiment == "Ensembles":
+        performance = ensemble_results()
+        st.success("Best by validation RMSE: Stacking (15,616.21 hg/ha), which also has the "
+                   "lowest test MAE and RMSE.")
+        st.write("Three ensembles combine Extra Trees, Histogram Gradient Boosting and the "
+                 "neural network. Same protocol as the advanced models: weights and the "
+                 "stacking meta-model are chosen with 1990–2005 training and 2006–2009 "
+                 "validation; the final refit on 1990–2009 is tested on 2010–2013, which is "
+                 "never used for choosing weights or models.")
+        st.caption("Saved results from ensemble_models.py; this page does not retrain the "
+                   "evaluation models. Errors are in hg/ha. The Weighted Average validation RMSE "
+                   "is slightly optimistic because its weights were computed from those years.")
+        st.dataframe(
+            performance.style.format({"Validation RMSE": "{:,.2f}", "Test MAE": "{:,.2f}",
+                                      "Test RMSE": "{:,.2f}", "Test R²": "{:.4f}"}),
+            width="stretch",
+            hide_index=True,
+        )
+
+        rmse_long = performance.melt(
+            id_vars="Model", value_vars=["Validation RMSE", "Test RMSE"],
+            var_name="Period", value_name="RMSE",
+        )
+        fig, ax = plt.subplots(figsize=(10, 4.8))
+        sns.barplot(data=rmse_long, y="Model", x="RMSE", hue="Period",
+                    palette=["#0b4650", "#d2a33a"], ax=ax)
+        ax.set_title("Validation (2006–2009) vs test (2010–2013) RMSE — lower is better")
+        ax.set_xlabel("RMSE (hg/ha)")
+        ax.set_ylabel("")
+        ax.legend(title="")
+        fig.tight_layout()
+        st.pyplot(fig)
+        plt.close(fig)
+
+        left, right = st.columns(2)
+        with left:
+            st.markdown("#### Weighted Average weights")
+            st.dataframe(
+                pd.DataFrame({"Base model": list(ENSEMBLE_WEIGHTS),
+                              "Weight": list(ENSEMBLE_WEIGHTS.values())})
+                .style.format({"Weight": "{:.4f}"}),
+                width="stretch",
+                hide_index=True,
+            )
+            st.caption("Weight ∝ 1 / validation RMSE², so a model with half the error gets "
+                       "four times the weight. Weights sum to 1.")
+        with right:
+            st.markdown("#### Stacking meta-model")
+            st.dataframe(
+                pd.DataFrame({"Term": list(STACKING_COEFFICIENTS) + ["Intercept"],
+                              "Value": list(STACKING_COEFFICIENTS.values()) + [STACKING_INTERCEPT]})
+                .style.format({"Value": "{:,.4f}"}),
+                width="stretch",
+                hide_index=True,
+            )
+            st.caption("Linear regression with non-negative coefficients, trained on "
+                       "out-of-fold predictions from expanding-window two-year time folds.")
+
+        st.write("Stacking learned to rely mostly on Extra Trees with a smaller neural-network "
+                 "share and gave Gradient Boosting zero weight. Combining models whose errors "
+                 "are only partly correlated lowered test RMSE by 8.4% against Extra Trees alone. "
+                 "This is one historical time window, not a guarantee of future performance.")
+        with st.expander("How the ensembles work"):
+            st.markdown("- **Simple Average:** each base model gets one third of the vote.\n"
+                        "- **Weighted Average:** better validation models get larger fixed weights.\n"
+                        "- **Stacking:** for each two-year block, base models trained only on earlier "
+                        "years predict that block; a linear meta-model learns how to combine these "
+                        "out-of-fold predictions, then the base models are refitted on all training data.")
+
+        with st.expander("Global SHAP importance (Extra Trees)"):
+            st.write("Mean absolute SHAP value per input for 100 sampled historical rows: on "
+                     "average, how many hg/ha each input moves the default model's prediction.")
+            if st.button("Compute SHAP importance"):
+                importance = extra_trees_importance(data)
+                value_column = importance.columns[1]
+                fig, ax = plt.subplots(figsize=(8, 4))
+                sns.barplot(data=importance, y="Feature", x=value_column, color="#0b4650", ax=ax)
+                ax.set_title("Feature importance — mean |SHAP|")
+                ax.set_xlabel("Mean |SHAP value| (hg/ha)")
+                ax.set_ylabel("")
+                fig.tight_layout()
+                st.pyplot(fig)
+                plt.close(fig)
+                st.caption("Uses the Extra Trees model fitted for the prediction page (trained "
+                           "first if needed). SHAP shows model behaviour, not causation.")
+        st.stop()
+
     if experiment == "Advanced models":
         performance = advanced_results()
         st.success("Default model: Extra Trees — lowest validation RMSE (16,102.478 hg/ha).")

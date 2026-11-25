@@ -9,6 +9,11 @@ This BTech Machine Learning lab project uses historical agricultural and weather
 - Nidhish Bansal
 - Yash Vishnoi
 
+## UML501 Submission Files
+
+- [Project report (PDF)](output/pdf/Crop_Yield_Prediction_UML501_Report_Revised.pdf)
+- [Project presentation (PowerPoint)](Crop_Yield_Prediction_UML501.pptx)
+
 ## Dashboard Preview
 
 These screenshots show the original dashboard. The current app also includes the advanced-model and ensemble selector, SHAP explanations, and the comparisons described below.
@@ -86,38 +91,6 @@ Errors are in hg/ha. **Extra Trees is the dashboard default** because it won on 
 The prediction page lets you choose any of these four models, or one of the ensembles below. It fits the requested model on all available 1990–2013 data and caches one fitted model at a time. Supply a year and weather/pesticide assumptions to obtain a conditional yield estimate. First-time training may take a minute. All models learn from history; a neural network does not guarantee reliable extrapolation beyond 2013.
 
 [`advanced_future_yield_models.py`](advanced_future_yield_models.py) contains the standalone initial advanced experiment and reusable model definitions used by the dashboard. Its standalone winner is selected using test RMSE; use the separate notebook's earlier-validation procedure for the more defensible lab comparison.
-
-### Temporal 1D CNN, Stacked Ensemble and Explainability
-
-[`Temporal_CNN_Ensemble_Explainability.ipynb`](Temporal_CNN_Ensemble_Explainability.ipynb) adds a deep-learning model, ensembles and model explanations:
-
-- **Cleaner data:** `yield_df.csv` repeats many country-crop-year rows, and only `avg_temp` differs between the copies. The notebook keeps one row per country-crop-year (13,130 rows) and averages the temperatures. The year 2003 is missing from the dataset, so it is interpolated, but only for use as a past input, never as a target.
-- **Temporal 1D CNN (PyTorch):** reads the last five years of yield, rainfall, pesticides and temperature for each country-crop pair, plus country and crop embeddings and this year's inputs, and predicts this year's yield.
-- **Fair comparison:** every model gets the same five-year lag features. A "last year's yield" baseline is also included.
-- **Ensembles:** simple average, validation-weighted average and stacking (non-negative linear regression). All weights are learned on 2006–2009 only.
-- **Explainability:** Grad-CAM and Integrated Gradients for the CNN, and SHAP for Extra Trees and the stacked ensemble.
-
-Model selection trains on target years 1995–2005 and validates on 2006–2009. Final evaluation refits on 1995–2009 and tests on 2010–2013.
-
-| Model | Validation RMSE | Test MAE | Test RMSE | Test R² |
-|---|---:|---:|---:|---:|
-| Extra Trees (selected) | 13,939.632 | 7,564.940 | 15,683.206 | 0.968 |
-| Ensemble: weighted average | 14,046.984 | 7,594.922 | 15,590.177 | 0.968 |
-| Ensemble: simple average | 14,064.615 | 7,633.135 | 15,610.054 | 0.968 |
-| Ensemble: stacking | 14,197.194 | 7,401.997 | 15,454.882 | 0.969 |
-| Last year's yield (baseline) | 14,657.148 | 7,766.018 | 16,738.258 | 0.964 |
-| Temporal 1D CNN | 14,816.736 | 8,014.704 | 16,647.012 | 0.964 |
-| Gradient Boosting | 14,919.482 | 8,029.653 | 16,420.802 | 0.965 |
-| Neural Network (MLP) | 16,911.294 | 9,624.132 | 17,669.333 | 0.959 |
-| Extra Trees (no lags) | 20,510.735 | 10,544.429 | 20,941.090 | 0.943 |
-
-Extra Trees with lag features is selected because it has the lowest validation RMSE. The stacked ensemble (68% Extra Trees, 28% CNN, 4% MLP) has the lowest test RMSE, but the test years are not used to change the choice. Past yields dominate every explanation, so the lag features are the main improvement (20,941 → 15,683 test RMSE for Extra Trees). The CNN beats the last-year baseline on test but not on validation. With about 10,000 samples it does not outperform the trees, though it still adds value inside the ensemble. These results use de-duplicated data, so they are not directly comparable with the tables above.
-
-This notebook needs PyTorch and SHAP:
-
-```bash
-pip install -r requirements-deep.txt
-```
 
 ## Ensembles and Explainability
 
@@ -230,7 +203,6 @@ Crop-Yield-Prediction/
 |   `-- config.toml
 |-- Crop_Yield_Prediction.ipynb
 |-- Advanced_Crop_Yield_Prediction.ipynb
-|-- Temporal_CNN_Ensemble_Explainability.ipynb
 |-- Ensemble_and_Explainability.ipynb
 |-- advanced_future_yield_models.py
 |-- ensemble_models.py
@@ -238,9 +210,7 @@ Crop-Yield-Prediction/
 |-- app.py
 |-- README.md
 |-- requirements.txt
-|-- requirements-deep.txt
 |-- output/
-|   |-- temporal_cnn_ensemble_results.csv
 |   `-- pdf/Crop_Yield_Project_Viva_Guide.pdf
 |-- screenshots/
 |   |-- overview.png
